@@ -72,7 +72,7 @@ jobs:
       shell: cmd
       run: |
         cl pen_mouse.cpp ^
-           user32.lib gdi32.lib shell32.lib ^
+           user32.lib gdi32.lib shell32.lib advapi32.lib ^
            /O2 /W3 /utf-8 ^
            /MT ^
            /Fe:pen_mouse.exe ^

@@ -49,6 +49,7 @@ using std::max;
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "advapi32.lib")  // AllocateAndInitializeSid / CheckTokenMembership / FreeSid
 
 // ════════════════════════════════════════════════════════════
 //  布局常量  (客户区像素)
