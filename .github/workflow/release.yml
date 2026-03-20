@@ -1,0 +1,162 @@
+# ============================================================
+#  .github/workflows/release.yml
+#  翻页笔鼠标控制器 — 自动编译 & 发布 Release
+# ============================================================
+#
+#  触发方式:
+#    1. 推送形如 v1.0、v2.3.1 的 Tag  → 自动编译并创建 Release
+#    2. 手动在 Actions 页面点击 "Run workflow"（可选填版本号）
+#
+#  产物:
+#    pen_mouse.exe   (MSVC x64 Release, 静态链接 CRT)
+# ============================================================
+
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*.*"          # e.g. v1.0  v1.2.3
+      - "v*.*.*"
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号 (如 v1.0.0)，留空则使用 git SHA 短码"
+        required: false
+        default: ""
+
+# ── 权限：允许创建 Release 和上传资产 ───────────────────────
+permissions:
+  contents: write
+
+# ════════════════════════════════════════════════════════════
+jobs:
+  build:
+    name: MSVC x64 Release
+    runs-on: windows-latest   # Windows Server 2022，自带 VS 2022
+
+    steps:
+
+    # 1. 检出代码 ──────────────────────────────────────────
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0        # 需要完整历史以生成 Changelog
+
+    # 2. 确定版本号 ────────────────────────────────────────
+    - name: Resolve version
+      id: ver
+      shell: pwsh
+      run: |
+        $v = "${{ github.event.inputs.version }}"
+        if (-not $v) {
+          # 如果是 Tag 触发，使用 Tag 名；否则用短 SHA
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $v = "${{ github.ref_name }}"
+          } else {
+            $v = "dev-$(git rev-parse --short HEAD)"
+          }
+        }
+        Write-Output "VERSION=$v" >> $env:GITHUB_OUTPUT
+        Write-Host "Version: $v"
+
+    # 3. 配置 MSVC 环境 ────────────────────────────────────
+    - name: Setup MSVC (x64)
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    # 4. 编译 ──────────────────────────────────────────────
+    - name: Compile pen_mouse.exe
+      shell: cmd
+      run: |
+        cl pen_mouse.cpp ^
+           user32.lib gdi32.lib shell32.lib ^
+           /O2 /W3 /utf-8 ^
+           /MT ^
+           /Fe:pen_mouse.exe ^
+           /link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup
+
+    # 5. 验证产物存在 ──────────────────────────────────────
+    - name: Verify binary
+      shell: pwsh
+      run: |
+        if (-not (Test-Path "pen_mouse.exe")) {
+          Write-Error "pen_mouse.exe not found — compilation failed"
+          exit 1
+        }
+        $size = (Get-Item "pen_mouse.exe").Length / 1KB
+        Write-Host "pen_mouse.exe  $([math]::Round($size,1)) KB"
+
+    # 6. 打包（附带 README）────────────────────────────────
+    - name: Package ZIP
+      shell: pwsh
+      run: |
+        $ver = "${{ steps.ver.outputs.VERSION }}"
+        $zip = "pen_mouse-$ver-win-x64.zip"
+
+        # 生成简易 README
+        @"
+        翻页笔鼠标控制器  $ver
+        ========================
+
+        使用方法
+        --------
+        直接双击 pen_mouse.exe，若未以管理员身份运行会自动弹出 UAC 提升请求。
+
+        默认按键映射
+        ────────────
+          上键   Page Up      向上/向左移动鼠标（按住自动加速）
+          下键   Page Down    向下/向右移动鼠标（按住自动加速）
+          方框键  .（句点）   单击=左键  双击=切换轴  长按=右键
+
+        全局快捷键  Ctrl+Shift+F8  随时开启/关闭控制模式
+
+        如翻页笔按键与默认不符，请使用程序内「按键检测」功能自动识别。
+
+        系统要求
+        --------
+          Windows 10 / 11  x64
+          需要管理员权限（WH_KEYBOARD_LL 低级键盘钩子）
+        "@ | Out-File -Encoding UTF8 README.txt
+
+        Compress-Archive -Path pen_mouse.exe, README.txt -DestinationPath $zip
+        Write-Host "Created $zip"
+        "ZIP_NAME=$zip" | Out-File -Append $env:GITHUB_OUTPUT
+      id: pkg
+
+    # 7. 生成 Changelog（两个 Tag 之间的提交记录）────────────
+    - name: Generate changelog
+      id: cl
+      shell: pwsh
+      run: |
+        $prev = git describe --tags --abbrev=0 HEAD~1 2>$null
+        if ($LASTEXITCODE -ne 0) { $prev = "" }
+
+        if ($prev) {
+          $log = git log "$prev..HEAD" --pretty=format:"- %s (%h)" 2>$null
+        } else {
+          $log = git log --pretty=format:"- %s (%h)" --max-count=20 2>$null
+        }
+
+        if (-not $log) { $log = "- Initial release" }
+
+        # GitHub Output 不支持多行，写到文件再读
+        $log | Out-File -Encoding UTF8 changelog.md
+        Write-Host "Changelog written"
+
+    # 8. 创建 / 更新 GitHub Release ───────────────────────
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name:   ${{ steps.ver.outputs.VERSION }}
+        name:       "翻页笔鼠标控制器 ${{ steps.ver.outputs.VERSION }}"
+        body_path:  changelog.md
+        draft:      false
+        prerelease: ${{ contains(steps.ver.outputs.VERSION, 'dev') || contains(steps.ver.outputs.VERSION, 'alpha') || contains(steps.ver.outputs.VERSION, 'beta') }}
+        files: |
+          pen_mouse.exe
+          ${{ steps.pkg.outputs.ZIP_NAME }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
