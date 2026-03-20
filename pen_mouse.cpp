@@ -1,17 +1,19 @@
 // ============================================================
-//  pen_mouse.cpp  —  翻页笔鼠标控制器  v1.2
+//  pen_mouse.cpp  —  翻页笔鼠标控制器  v1.3
 // ============================================================
 //
-//  v1.2 改动：Per-Monitor DPI 感知，彻底消除白板高分屏模糊
+//  v1.3 改动：Per-Monitor DPI 感知，彻底消除白板高分屏模糊
 //
 //  编译 (MSVC):
-//    cl pen_mouse.cpp user32.lib gdi32.lib shell32.lib advapi32.lib
+//    rc resource.rc
+//    cl pen_mouse.cpp resource.res user32.lib gdi32.lib shell32.lib advapi32.lib
 //       /O2 /W3 /utf-8 /MT
 //       /Fe:pen_mouse.exe
 //       /link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup
 //
 //  编译 (MinGW / GCC):
-//    g++ -O2 -o pen_mouse.exe pen_mouse.cpp
+//    windres resource.rc -O coff -o resource.res
+//    g++ -O2 -o pen_mouse.exe pen_mouse.cpp resource.res
 //        -lgdi32 -luser32 -lshell32 -ladvapi32
 //        -mwindows -municode
 //
@@ -41,6 +43,8 @@ using std::max;
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "advapi32.lib")
+
+#define IDI_APP 101   // 与 resource.rc 中的图标 ID 一致
 
 // ════════════════════════════════════════════════════════════
 //  DPI 辅助
@@ -492,7 +496,7 @@ static LRESULT CALLBACK WndProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
         // ─ 标题 ─────────────────────────────────────────────
         DTxt(dc, L"⌨  翻页笔鼠标控制器",
              S(20), S(14), S(300), S(28), C_TEXT, g_f_lrg);
-        DTxt(dc, L"Clicker → Mouse Bridge  v1.2",
+        DTxt(dc, L"Clicker → Mouse Bridge  v1.3",
              S(24), S(40), S(320), S(18), C_SUB, g_f_mono);
 
         // ─ 状态卡片  y=62 h=60 ──────────────────────────────
@@ -667,7 +671,8 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int) {
     wc.hCursor       = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush(C_BG);
     wc.lpszClassName = L"PenMouseCtrl";
-    wc.hIcon         = LoadIconW(nullptr, IDI_APPLICATION);
+    wc.hIcon         = LoadIconW(hi, MAKEINTRESOURCEW(IDI_APP));
+    wc.hIconSm       = (HICON)LoadImageW(hi, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     RegisterClassExW(&wc);
 
     // ── 5. 创建窗口（尺寸已按 DPI 缩放）──────────────────

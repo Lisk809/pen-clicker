@@ -68,10 +68,11 @@ jobs:
         arch: x64
 
     # 4. 编译 ──────────────────────────────────────────────
-    - name: Compile pen_mouse.exe
+    - name: Compile resource & pen_mouse.exe
       shell: cmd
       run: |
-        cl pen_mouse.cpp ^
+        rc resource.rc
+        cl pen_mouse.cpp resource.res ^
            user32.lib gdi32.lib shell32.lib advapi32.lib ^
            /O2 /W3 /utf-8 ^
            /MT ^
