@@ -102,7 +102,7 @@ static HICON LoadEmbeddedIcon(int cx, int cy) {
     }
     // 全部帧都大于 cx：退化为最小帧
     if (bestW == 0) {
-        int minW = INT_MAX;
+        int minW = 0x7fffffff;
         for (int i = 0; i < nImages; ++i) {
             int w = (dir[i].width == 0) ? 256 : dir[i].width;
             if (w < minW) { minW = w; bestIdx = i; }
