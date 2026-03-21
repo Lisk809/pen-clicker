@@ -68,11 +68,10 @@ jobs:
         arch: x64
 
     # 4. 编译 ──────────────────────────────────────────────
-    - name: Compile resource & pen_mouse.exe
+    - name: Compile pen_mouse.exe
       shell: cmd
       run: |
-        rc resource.rc
-        cl pen_mouse.cpp resource.res ^
+        cl pen_mouse.cpp ^
            user32.lib gdi32.lib shell32.lib advapi32.lib ^
            /O2 /W3 /utf-8 ^
            /MT ^
@@ -122,7 +121,7 @@ jobs:
           需要管理员权限（WH_KEYBOARD_LL 低级键盘钩子）
         "@ | Out-File -Encoding UTF8 README.txt
 
-        Compress-Archive -Path pen_mouse.exe, README.txt -DestinationPath $zip
+        Compress-Archive -Path pen_mouse.exe, pen_mouse.ico, README.txt -DestinationPath $zip
         Write-Host "Created $zip"
         "ZIP_NAME=$zip" | Out-File -Append $env:GITHUB_OUTPUT
       id: pkg

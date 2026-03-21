@@ -1,7 +1,0 @@
-// resource.rc — Windows 资源文件
-// 编译时自动被 rc.exe / windres 处理，将图标嵌入 EXE
-
-#include <windows.h>
-
-// IDI_APP = 101，与 pen_mouse.cpp 中的 IDI_APP 保持一致
-101 ICON "pen_mouse.ico"

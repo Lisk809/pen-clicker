@@ -5,17 +5,15 @@
 //  v1.3 改动：Per-Monitor DPI 感知，彻底消除白板高分屏模糊
 //
 //  编译 (MSVC):
-//    rc resource.rc
-//    cl pen_mouse.cpp resource.res user32.lib gdi32.lib shell32.lib advapi32.lib
-//       /O2 /W3 /utf-8 /MT
-//       /Fe:pen_mouse.exe
+//    cl pen_mouse.cpp user32.lib gdi32.lib shell32.lib advapi32.lib
+//       /O2 /W3 /utf-8 /MT /Fe:pen_mouse.exe
 //       /link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup
 //
 //  编译 (MinGW / GCC):
-//    windres resource.rc -O coff -o resource.res
-//    g++ -O2 -o pen_mouse.exe pen_mouse.cpp resource.res
-//        -lgdi32 -luser32 -lshell32 -ladvapi32
-//        -mwindows -municode
+//    g++ -O2 -o pen_mouse.exe pen_mouse.cpp
+//        -lgdi32 -luser32 -lshell32 -ladvapi32 -mwindows -municode
+//
+//  图标已嵌入 icon_data.h，无需 resource.rc / rc.exe
 //
 //  需要管理员权限（WH_KEYBOARD_LL 低级键盘钩子）
 // ============================================================
@@ -31,6 +29,7 @@
 
 #include <windows.h>
 #include <shellapi.h>
+#include "icon_data.h"   // 嵌入式图标数据
 #include <shlobj.h>
 #include <algorithm>
 #include <atomic>
@@ -43,8 +42,6 @@ using std::max;
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "advapi32.lib")
-
-#define IDI_APP 101   // 与 resource.rc 中的图标 ID 一致
 
 // ════════════════════════════════════════════════════════════
 //  DPI 辅助
@@ -671,8 +668,8 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int) {
     wc.hCursor       = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = CreateSolidBrush(C_BG);
     wc.lpszClassName = L"PenMouseCtrl";
-    wc.hIcon         = LoadIconW(hi, MAKEINTRESOURCEW(IDI_APP));
-    wc.hIconSm       = (HICON)LoadImageW(hi, MAKEINTRESOURCEW(IDI_APP), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+    wc.hIcon         = LoadEmbeddedIcon(32, 32);   // 任务栏 / ALT+TAB 大图标
+    wc.hIconSm       = LoadEmbeddedIcon(16, 16);   // 标题栏小图标
     RegisterClassExW(&wc);
 
     // ── 5. 创建窗口（尺寸已按 DPI 缩放）──────────────────
